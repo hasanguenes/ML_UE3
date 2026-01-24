@@ -90,7 +90,6 @@ class GTSRBDataset(Dataset):
         self.normalize = normalize
         self.img_size = tuple(img_size)
 
-        # Like CIFAR: mean/std live inside the class (no passing)
         mean, std = _lookup_gtsrb_stats(self.img_size)
         self.mean = torch.tensor(mean, dtype=torch.float32).view(3, 1, 1)
         self.std  = torch.tensor(std,  dtype=torch.float32).view(3, 1, 1)
@@ -160,7 +159,7 @@ def get_gtsrb_dataloaders(
     Returns (train_loader, test_loader) for GTSRB.
 
     - normalize=False: tensors in [0,1]
-    - normalize=True : (x - mean)/std using the hardcoded stats for the given img_size
+    - normalize=True : (x - mean)/std using the pre-computed stats for the given img_size
     """
     img_size = tuple(img_size)
 
