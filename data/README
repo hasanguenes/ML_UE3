@@ -1,0 +1,22 @@
+The loaders expect the following data structure:
+
+data/
+├─ cifar-10-batches-py/
+│  ├─ batches.meta
+│  ├─ data_batch_1
+│  ├─ data_batch_2
+│  ├─ data_batch_3
+│  ├─ data_batch_4
+│  ├─ data_batch_5
+│  ├─ test_batch
+│  └─ readme.html
+└─ GTSRB/
+   ├─ Final_Training_Images/
+   │  ├─ 00000/
+   │  │  └─ *.ppm
+   │  ├─ 00001/
+   │  │  └─ *.ppm
+   │  └─ ...
+   └─ Final_Test_Images/
+      ├─ *.ppm
+      └─ GT-final_test.csv
