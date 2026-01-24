@@ -1,7 +1,6 @@
-# gt_loader.py  (GTSRB / "GT" loader for DL)
-import os
-from pathlib import Path
+# gtsrb_loader.py  
 
+from pathlib import Path
 import numpy as np
 import pandas as pd
 import torch
@@ -9,23 +8,71 @@ from torch.utils.data import Dataset, DataLoader
 from PIL import Image
 from torchvision import transforms
 
+def compute_gtsrb_train_mean_std(root: str, img_size=(64, 64)):
+    train_dir = Path(root) / "Final_Training_Images"
+    if not train_dir.exists():
+        raise FileNotFoundError(train_dir)
 
-class GT(Dataset):
+    tfm = transforms.Compose([
+        transforms.Resize(img_size),
+        transforms.ToTensor(),   # (3,H,W) float in [0,1]
+    ])
+
+    channel_sum = torch.zeros(3)
+    channel_sq_sum = torch.zeros(3)
+    num_pixels = 0
+
+    # iterate all class folders and ppm files
+    for class_dir in sorted([d for d in train_dir.iterdir() if d.is_dir()]):
+        for img_path in class_dir.glob("*.ppm"):
+            with Image.open(img_path) as im:
+                x = tfm(im.convert("RGB"))  # (3,H,W)
+
+            h, w = x.shape[1], x.shape[2]
+            num_pixels += h * w
+            channel_sum += x.sum(dim=(1, 2))
+            channel_sq_sum += (x ** 2).sum(dim=(1, 2))
+
+    mean = channel_sum / num_pixels
+    std = torch.sqrt(channel_sq_sum / num_pixels - mean ** 2)
+    return mean, std
+
+# pre-computed mean and std values (depending on image size) manually by helper function shown above (compute_gtsrb_train_mean_std)
+GTSRB_MEAN_STD_BY_SIZE  = {
+    (32, 32): {
+        "mean": [0.3403, 0.3121, 0.3214],  
+        "std":  [0.2724, 0.2608, 0.2669],  
+    },
+    (64, 64): {
+        "mean": [0.3403, 0.3122, 0.3215],  
+        "std":  [0.2751, 0.2642, 0.2707], 
+    },
+}
+
+def _lookup_gtsrb_stats(img_size):
+    img_size = tuple(img_size)
+    if img_size not in GTSRB_MEAN_STD_BY_SIZE:
+        raise ValueError(
+            f"No mean/std available for img_size={img_size}. "
+            f"Available: {list(GTSRB_MEAN_STD_BY_SIZE.keys())}"
+        )
+    stats = GTSRB_MEAN_STD_BY_SIZE[img_size]
+    return stats["mean"], stats["std"]
+
+class GTSRBDataset(Dataset):
     """
-    GTSRB (GT) Dataset for DL.
+    GTSRB Dataset for DL.
 
     Expected structure:
     root/
       Final_Training_Images/
-        00000/*.ppm
-        00001/*.ppm
-        ...
+        00000/*.ppm ...
       Final_Test_Images/
         *.ppm
-        GT-final_test.csv  (must contain Filename and ClassId)
+        GT-final_test.csv  (Filename, ClassId)
 
     Returns:
-      img: torch.float32 (3,H,W) in [0,1] (or normalized if normalize=True)
+      img: torch.float32 (3,H,W) in [0,1] (optionally normalized)
       label: torch.long
     """
     def __init__(
@@ -34,16 +81,19 @@ class GT(Dataset):
         split: str = "train",
         transform=None,
         normalize: bool = False,
+        img_size=(64, 64),                 # needed to pick correct mean/std
         csv_name: str = "GT-final_test.csv",
     ):
         self.root = Path(root)
         self.split = split.lower().strip()
         self.transform = transform
         self.normalize = normalize
+        self.img_size = tuple(img_size)
 
-        # TODO: have to compute mean!!
-        self.mean = torch.tensor([0.5, 0.5, 0.5]).view(3, 1, 1)
-        self.std  = torch.tensor([0.5, 0.5, 0.5]).view(3, 1, 1)
+        # Like CIFAR: mean/std live inside the class (no passing)
+        mean, std = _lookup_gtsrb_stats(self.img_size)
+        self.mean = torch.tensor(mean, dtype=torch.float32).view(3, 1, 1)
+        self.std  = torch.tensor(std,  dtype=torch.float32).view(3, 1, 1)
 
         if self.split == "train":
             base = self.root / "Final_Training_Images"
@@ -51,9 +101,8 @@ class GT(Dataset):
                 raise FileNotFoundError(f"Missing folder: {base}")
 
             paths, labels = [], []
-            # folders are typically "00000".."00042"
             for class_dir in sorted([d for d in base.iterdir() if d.is_dir()]):
-                class_id = int(class_dir.name)  # robust: use folder name as label
+                class_id = int(class_dir.name)
                 for p in sorted(class_dir.glob("*.ppm")):
                     paths.append(p)
                     labels.append(class_id)
@@ -71,7 +120,6 @@ class GT(Dataset):
 
             df = pd.read_csv(csv_path, sep=None, engine="python")
             df.columns = [c.strip() for c in df.columns]
-
             if "Filename" not in df.columns or "ClassId" not in df.columns:
                 raise ValueError(f"CSV must contain Filename and ClassId, got {df.columns.tolist()}")
 
@@ -90,11 +138,9 @@ class GT(Dataset):
 
         with Image.open(p) as im:
             im = im.convert("RGB")
-
             if self.transform is not None:
-                img = self.transform(im)  # should produce tensor in [0,1] if ToTensor is included
+                img = self.transform(im)  # should yield tensor in [0,1]
             else:
-                # fallback: tensor in [0,1]
                 img = torch.from_numpy(np.array(im)).permute(2, 0, 1).float() / 255.0
 
         if self.normalize:
@@ -103,7 +149,7 @@ class GT(Dataset):
         return img, torch.tensor(y, dtype=torch.long)
 
 
-def get_gt_dataloaders(
+def get_gtsrb_dataloaders(
     root: str,
     img_size=(64, 64),
     batch_size: int = 128,
@@ -111,28 +157,36 @@ def get_gt_dataloaders(
     normalize: bool = False,
 ):
     """
-    Returns (train_loader, test_loader) for GT (GTSRB).
-    Resizing is done here via transforms.Resize(img_size).
+    Returns (train_loader, test_loader) for GTSRB.
+
+    - normalize=False: tensors in [0,1]
+    - normalize=True : (x - mean)/std using the hardcoded stats for the given img_size
     """
-    tfms = [transforms.Resize(img_size), transforms.ToTensor()]  # -> float in [0,1]
+    img_size = tuple(img_size)
 
-    train_tfm = transforms.Compose(tfms)
-    test_tfm  = transforms.Compose(tfms)
+    tfms = transforms.Compose([
+        transforms.Resize(img_size),
+        transforms.ToTensor(),  # -> float in [0,1]
+    ])
 
-    train_ds = GT(root=root, split="train", transform=train_tfm, normalize=normalize)
-    test_ds  = GT(root=root, split="test",  transform=test_tfm,  normalize=normalize)
+    train_dataset = GTSRBDataset(
+        root=root, split="train", transform=tfms, normalize=normalize, img_size=img_size
+    )
+    test_dataset = GTSRBDataset(
+        root=root, split="test",  transform=tfms, normalize=normalize, img_size=img_size
+    )
 
     pin = torch.cuda.is_available()
 
     train_loader = DataLoader(
-        train_ds,
+        train_dataset,
         batch_size=batch_size,
         shuffle=True,
         num_workers=num_workers,
         pin_memory=pin,
     )
     test_loader = DataLoader(
-        test_ds,
+        test_dataset,
         batch_size=batch_size * 2,
         shuffle=False,
         num_workers=num_workers,

@@ -1,3 +1,5 @@
+The datasets are not included in repo due to their huge size. So, this file shows how the datasets should be stored in order to get the loaders work correctly.
+
 The loaders expect the following data structure:
 
 data/
