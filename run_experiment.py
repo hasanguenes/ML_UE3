@@ -2,37 +2,44 @@
 # TODO: hier die komentare anpassen!
 # PURPOSE
 # -------
-# Command-line entry point to run ONE LeNet experiment:
-#   - train LeNet5 on a dataset (GTSRB or CIFAR10)
-#   - optionally save run artifacts (weights + config + history + plots)
-#   - run "detailed" evaluation (confusion matrix, per-class recall, balanced accuracy)
+# Command-line entry point to run ONE deep-learning experiment from the terminal.
+# Supported:
+#   - Models: LeNet5, ResNet18
+#   - Datasets: GTSRB, CIFAR10
+#
+# What this script does:
+#   - trains the selected model on the selected dataset
+#   - optionally applies training-time augmentation (train split only)
+#   - evaluates on the test set (confusion matrix, per-class recall, balanced accuracy, report)
+#   - optionally saves a complete run folder (weights + config + history + plots)
 #
 # This satisfies the assignment requirement:
 # "configurable via command-line options or a configuration file"
+# (no code edits required to change hyperparameters or evaluation behavior).
 #
 # HOW TO RUN (examples)
 # ---------------------
-# 1) Show CLI options:
+# 1) Show CLI options (including defaults):
 #    python run_experiment.py --help
 #
-# 2) Train on GTSRB (debug subset), save artifacts, detailed eval:
-#    python run_experiment.py --mode train --dataset gtsrb --data-root ../data/GTSRB ^
-#        --img-size 32 --epochs 3 --batch-size 128 --lr 1e-3 ^
-#        --dropout 0.2 --activation tanh --normalize 1 --debug-fraction 0.05 ^
-#        --save-run 1 --eval detailed
+# 2) Train LeNet5 on a small GTSRB subset (debug), with augmentation and saved artifacts:
+#    python run_experiment.py --mode train --model lenet5 --dataset gtsrb --data-root data/GTSRB ^
+#        --epochs 3 --batch-size 128 --lr 1e-3 --dropout 0.2 --activation tanh ^
+#        --normalize 1 --augment 1 --debug-fraction 0.05 --save-run 1
 #
-# 3) Train on full GTSRB, no debug, save:
-#    python run_experiment.py --mode train --dataset gtsrb --data-root ../data/GTSRB ^
-#        --img-size 32 --epochs 10 --batch-size 128 --lr 1e-3 ^
-#        --dropout 0.0 --activation tanh --normalize 1 --debug-fraction 1.0 ^
-#        --save-run 1 --eval detailed
+# 3) Train ResNet18 on full GTSRB (optionally pretrained, optionally frozen backbone), save artifacts:
+#    python run_experiment.py --mode train --model resnet18 --dataset gtsrb --data-root data/GTSRB ^
+#        --epochs 10 --batch-size 128 --lr 1e-3 --dropout 0.3 --pretrained 1 --freeze-backbone 1 ^
+#        --normalize 1 --augment 1 --debug-fraction 1.0 --save-run 1
 #
-# 4) Evaluate a saved run again (no training):
-#    python run_experiment.py --mode eval --run-dir runs/GTSRB/<RUN_FOLDER> --eval detailed
+# 4) Evaluate a saved run again (no training). Uses the stored config.json to rebuild model + loaders:
+#    python run_experiment.py --mode eval --run-dir runs/RESNET18/GTSRB/<RUN_FOLDER>
 #
-# NOTE (Windows):
-# Keep the if __name__ == "__main__": main() guard at the end,
+# NOTE (Windows)
+# --------------
+# Keep the "if __name__ == '__main__': main()" guard at the end,
 # otherwise DataLoader multiprocessing can break.
+
 
 from __future__ import annotations
 
@@ -59,6 +66,7 @@ from data.gtsrb_loader import get_gtsrb_dataloaders
 from data.cifar_loader import get_cifar10_dataloaders
 from DL_approach.train_utils import train_model
 from DL_approach.LeNet import LeNet5  
+from DL_approach.resnet import ResNet18
 
 # print("RUN_EXPERIMENT PATH =", __file__)
 
@@ -279,6 +287,8 @@ class Runconfig:
     """
     Everything needed to understand and re-load a run later.
     """
+    model: str
+
     dataset: str
     data_root: str
     img_size: int
@@ -293,6 +303,10 @@ class Runconfig:
     activation: str
     dropout: float
     adapt_lenet: int
+
+    # ResNet params
+    pretrained: int
+    freeze_backbone: int
 
     # training params
     epochs: int
@@ -311,19 +325,36 @@ def make_run_dir(args: argparse.Namespace) -> Path:
     """
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
 
-    tag = (
-        f"lenet5__{args.dataset}{args.img_size}"
-        f"__aug{args.augment}" 
-        f"__act{args.activation}"
+    base = (
+        f"{args.model}__{args.dataset}{args.img_size}"
+        f"__aug{args.augment}"
         f"__do{args.dropout}"
         f"__ep{args.epochs}"
         f"__opt{args.optimizer}{args.lr}"
         f"__dbg{args.debug_fraction}"
         f"__s{args.seed}"
-        f"__{stamp}"
     )
+
+    if args.model == "lenet5":
+        base += f"__act{args.activation}__adapt{args.adapt_lenet}"
+    elif args.model == "resnet18":
+        base += f"__pt{args.pretrained}__frz{args.freeze_backbone}"
+
+    tag = base + f"__{stamp}"
+
+    # tag = (
+    #     f"lenet5__{args.dataset}{args.img_size}"
+    #     f"__aug{args.augment}" 
+    #     f"__act{args.activation}"
+    #     f"__do{args.dropout}"
+    #     f"__ep{args.epochs}"
+    #     f"__opt{args.optimizer}{args.lr}"
+    #     f"__dbg{args.debug_fraction}"
+    #     f"__s{args.seed}"
+    #     f"__{stamp}"
+    # )
     run_name = slugify(tag)
-    run_dir = Path(args.runs_dir) / args.dataset.upper() / run_name
+    run_dir = Path(args.runs_dir) / args.model.upper() / args.dataset.upper() / run_name
     run_dir.mkdir(parents=True, exist_ok=False)
     return run_dir
 
@@ -452,7 +483,7 @@ def build_loaders_and_classes(
 
 def make_optimizer(
     optimizer_name: str,
-    model: nn.Module,
+    params,
     lr: float,
     weight_decay: float,
 ) -> optim.Optimizer:
@@ -460,9 +491,9 @@ def make_optimizer(
     You can extend this later if you need more options (SGD momentum, etc.).
     """
     if optimizer_name == "adam":
-        return optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+        return optim.Adam(params, lr=lr, weight_decay=weight_decay)
     if optimizer_name == "sgd":
-        return optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=weight_decay)
+        return optim.SGD(params, lr=lr, momentum=0.9, weight_decay=weight_decay)
     raise ValueError("optimizer must be 'adam' or 'sgd'")
 
 
@@ -474,6 +505,13 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description="Run one LeNet experiment (train/eval) via CLI.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+
+    p.add_argument(
+        "--model",
+        choices=["lenet5", "resnet18"],
+        default="lenet5",
+        help="Which model to run."
     )
 
     p.add_argument(
@@ -596,6 +634,23 @@ def parse_args() -> argparse.Namespace:
         help="L2 weight decay (regularization). Use 0.0 to disable."
     )
 
+    # ResNet-specific
+    p.add_argument(
+        "--pretrained",
+        type=int,
+        choices=[0, 1],
+        default=0,
+        help="ResNet18 only: 1 loads ImageNet pretrained weights, 0 trains from scratch."
+    )
+    p.add_argument(
+        "--freeze-backbone",
+        type=int,
+        choices=[0, 1],
+        default=0,
+        help="ResNet18 only: 1 freezes backbone and trains only the final layer (fc)."
+    )
+
+
     # runtime
     p.add_argument(
         "--device",
@@ -663,24 +718,50 @@ def main() -> None:
         print("Train samples:", len(train_loader.dataset))
         print("Test  samples:", len(test_loader.dataset))
 
-        # Build LeNet model
-        model = LeNet5(
-            in_channels=in_channels,
-            num_classes=num_classes,
-            input_size=args.img_size,
-            activation=args.activation,
-            adapt_to_lenet_geometry=bool(args.adapt_lenet),
-            dropout_p=float(args.dropout),
-        ).to(device)
+        # # Build LeNet model
+        # model = LeNet5(
+        #     in_channels=in_channels,
+        #     num_classes=num_classes,
+        #     input_size=args.img_size,
+        #     activation=args.activation,
+        #     adapt_to_lenet_geometry=bool(args.adapt_lenet),
+        #     dropout_p=float(args.dropout),
+        # ).to(device)
+
+        if args.model == "lenet5":
+            model = LeNet5(
+                in_channels=in_channels,
+                num_classes=num_classes,
+                input_size=args.img_size,
+                activation=args.activation,
+                adapt_to_lenet_geometry=bool(args.adapt_lenet),
+                dropout_p=float(args.dropout),
+            ).to(device)
+
+        elif args.model == "resnet18":
+            model = ResNet18(
+                in_channels=in_channels,
+                num_classes=num_classes,
+                pretrained=bool(args.pretrained),
+                freeze_backbone=bool(args.freeze_backbone),
+                dropout=float(args.dropout),
+            ).to(device)
+
+        else:
+            raise ValueError(f"Unknown model: {args.model}")
+
 
         criterion = nn.CrossEntropyLoss()
-        optimizer = make_optimizer(args.optimizer, model, lr=args.lr, weight_decay=args.weight_decay)
+        params = [p for p in model.parameters() if p.requires_grad]
+        optimizer = make_optimizer(args.optimizer, params, lr=args.lr, weight_decay=args.weight_decay)
 
         # Decide run directory and save config early
         run_dir: Optional[Path] = None
         if args.save_run:
             run_dir = make_run_dir(args)
             config = Runconfig(
+                model=args.model,
+                
                 dataset=args.dataset,
                 data_root=args.data_root,
                 img_size=args.img_size,
@@ -688,28 +769,43 @@ def main() -> None:
                 debug_fraction=args.debug_fraction,
                 augment=args.augment,
                 seed=args.seed,
+
                 in_channels=in_channels,
                 num_classes=num_classes,
-                activation=args.activation,
+
+                # LeNet params (only meaningful for LeNet, but must exist)
+                activation=args.activation if args.model == "lenet5" else "tanh",
                 dropout=float(args.dropout),
-                adapt_lenet=args.adapt_lenet,
+                adapt_lenet=args.adapt_lenet if args.model == "lenet5" else 0,
+
+                # ResNet params (only meaningful for ResNet, but must exist)
+                pretrained=int(args.pretrained) if args.model == "resnet18" else 0,
+                freeze_backbone=int(args.freeze_backbone) if args.model == "resnet18" else 0,
+
                 epochs=args.epochs,
                 batch_size=args.batch_size,
                 optimizer=args.optimizer,
                 lr=float(args.lr),
                 weight_decay=float(args.weight_decay),
+
                 created_at=datetime.now().isoformat(timespec="seconds"),
             )
             save_config(config, run_dir)
 
         # Train (your existing function)
         run_tag = (
-            f"{args.dataset}{args.img_size}"
+            f"{args.model}_{args.dataset}{args.img_size}"
             f"_aug{args.augment}"
-            f"_do{args.dropout}_act{args.activation}"
+            f"_do{args.dropout}"
             f"_ep{args.epochs}_{args.optimizer}{args.lr}"
             f"_dbg{args.debug_fraction}"
         )
+
+        if args.model == "lenet5":
+            run_tag += f"_act{args.activation}_adapt{args.adapt_lenet}"
+        else:
+            run_tag += f"_pt{args.pretrained}_frz{args.freeze_backbone}"
+
         model, history = train_model(
             model=model,
             trainloader=train_loader,
@@ -728,7 +824,8 @@ def main() -> None:
             save_checkpoint(model, run_dir)
             (run_dir / "history.json").write_text(json.dumps(history, indent=2), encoding="utf-8")
 
-            title = f"LeNet5 on {args.dataset.upper()} ({args.img_size}x{args.img_size}, aug={args.augment})"
+            title = f"{args.model.upper()} on {args.dataset.upper()} ({args.img_size}x{args.img_size}, aug={args.augment})"
+
             metrics = evaluate_detailed_and_save(
                 model=model,
                 dataloader=test_loader,
@@ -768,22 +865,46 @@ def main() -> None:
             augment=config.augment
         )
 
-        # Rebuild model consistently with config
-        model = LeNet5(
-            in_channels=in_channels,
-            num_classes=num_classes,
-            input_size=config.img_size,
-            activation=config.activation,
-            adapt_to_lenet_geometry=bool(config.adapt_lenet),
-            dropout_p=float(config.dropout),
-        ).to(device)
+        # # Rebuild model consistently with config
+        # model = LeNet5(
+        #     in_channels=in_channels,
+        #     num_classes=num_classes,
+        #     input_size=config.img_size,
+        #     activation=config.activation,
+        #     adapt_to_lenet_geometry=bool(config.adapt_lenet),
+        #     dropout_p=float(config.dropout),
+        # ).to(device)
+
+        if config.model == "lenet5":
+            model = LeNet5(
+                in_channels=in_channels,
+                num_classes=num_classes,
+                input_size=config.img_size,
+                activation=config.activation,
+                adapt_to_lenet_geometry=bool(config.adapt_lenet),
+                dropout_p=float(config.dropout),
+            ).to(device)
+
+        elif config.model == "resnet18":
+            model = ResNet18(
+                in_channels=in_channels,
+                num_classes=num_classes,
+                pretrained=bool(config.pretrained),
+                freeze_backbone=bool(config.freeze_backbone),
+                dropout=float(config.dropout),
+            ).to(device)
+
+        else:
+            raise ValueError(f"Unknown model in config: {config.model}")
+
 
         # Load weights
         state = torch.load(run_dir / "model.pth", map_location="cpu")
         model.load_state_dict(state)
 
         # Evaluate
-        title = f"LeNet5 on {config.dataset.upper()} ({config.img_size}x{config.img_size})"
+        title = f"{config.model.upper()} on {config.dataset.upper()} ({config.img_size}x{config.img_size}, aug={config.augment})"
+
         metrics = evaluate_detailed_and_save(
             model=model,
             dataloader=test_loader,
