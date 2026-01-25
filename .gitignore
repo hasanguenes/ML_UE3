@@ -3,4 +3,5 @@
 /cache_gtsrb
 
 shallow_baselines.*
-/runs
+/runs/GTSRB
+/runs/CIFAR10
