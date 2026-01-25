@@ -377,21 +377,19 @@ def build_loaders_and_classes(
             train_tfm_list += [
                 # Mild lighting changes; keep hue small because sign color matters
                 transforms.ColorJitter(
-                    brightness=0.15,
-                    contrast=0.15,
-                    saturation=0.10,
-                    hue=0.02,
+                    brightness=0.15,   # Mild illumination changes (shadows/sun) without destroying signal information
+                    contrast=0.15,     # Handles varying camera exposure / contrast conditions
+                    saturation=0.10,   # Slight color intensity variation; keep small to preserve class-discriminative colors
+                    hue=0.02,          # Very small hue shift because sign color (e.g., red/blue) is often class-relevant
                 ),
                 # Realistic slight camera tilt
-                transforms.RandomRotation(degrees=8),
+                transforms.RandomRotation(degrees=8), # Small camera tilt / imperfect alignment; avoid large angles that change sign appearance too much
                 # Slight shift/scale; keep it small to avoid cutting off the sign at 32x32
                 transforms.RandomAffine(
-                    degrees=0,
-                    translate=(0.03, 0.03),
-                    scale=(0.95, 1.05),
+                    degrees=0,                               # Rotation already handled above; keep affine focused on shift/scale only
+                    translate=(0.03, 0.03),                  # Small position jitter to tolerate imperfect cropping/localization
+                    scale=(0.95, 1.05),                      # Small scale jitter to simulate distance changes; kept tight to avoid losing details at 32x32
                 ),
-                # Optional: mild blur (comment out if you want)
-                # transforms.GaussianBlur(kernel_size=3, sigma=(0.1, 1.0)),
             ]
 
         train_transform = transforms.Compose(train_tfm_list + [transforms.ToTensor()])
@@ -412,25 +410,27 @@ def build_loaders_and_classes(
         return train_loader, test_loader, class_names, 3, 43
 
     if dataset == "cifar10":
-
+        
+        # DL pipeline: CIFAR10 is always 32x32
+        if img_size != 32:
+            raise ValueError("CIFAR10 DL pipeline expects img_size=32.")
+        
         use_aug = bool(augment)
 
-        # TODO: add sources!
+        # TODO: source for augmentation
         if use_aug:
-            tfms = []
-            if img_size != 32:
-                tfms.append(v2.Resize((img_size, img_size)))
-
-            tfms += [
-                v2.RandomCrop(size=(img_size, img_size), padding=4),
+            train_transform = v2.Compose([
+                # Adds small random translations -> improves shift/position robustness
+                v2.RandomCrop(size=(32, 32), padding=4),
+                # Enforces left-right invariance; doubles effective views for many classes
                 v2.RandomHorizontalFlip(p=0.5),
-                v2.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.02),
-            ]
-            train_transform = v2.Compose(tfms)
+                # Simulates lighting/color variations -> reduces overfitting to color/illumination
+                v2.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
+            ])
         else:
-            train_transform = v2.Resize((img_size, img_size)) if img_size != 32 else None
+            train_transform = None
 
-        test_transform = v2.Resize((img_size, img_size)) if img_size != 32 else None
+        test_transform = None
 
         train_loader, test_loader = get_cifar10_dataloaders(
             root=data_root,
@@ -519,8 +519,8 @@ def parse_args() -> argparse.Namespace:
         "--img-size",
         type=int,
         default=32,
-        help="Input image size (images will be resized to IMG_SIZE x IMG_SIZE by the dataloader)."
-    )
+        help="Input size. For CIFAR10 it is forced to 32; for GTSRB you can use 32 or 64."
+)
     p.add_argument(
         "--normalize",
         type=int,
@@ -636,6 +636,11 @@ def main() -> None:
     args = parse_args()
     device = pick_device(args.device)
     set_seed(args.seed)
+
+    # CIFAR10 is defined at 32x32. For the DL pipeline we force it.
+    if args.dataset == "cifar10" and args.img_size != 32:
+        print(f"[INFO] Forcing img_size from {args.img_size} to 32 for CIFAR10 (DL pipeline).")
+        args.img_size = 32
 
     print("Device:", device)
 
