@@ -263,6 +263,7 @@ def train_model(
     print(f"  total train time: {total_train_time_s:.2f}s")
     print(f"  total eval  time: {total_eval_time_s:.2f}s")
 
+    # The idea of saving plots was given by a colleague. @credits to him
     if save_curves:
         out_dir = Path(curves_dir)
         out_dir.mkdir(parents=True, exist_ok=True)

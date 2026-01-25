@@ -3,6 +3,7 @@
 import torch
 import torch.nn as nn
 
+# I added optional dropout opportunity to LeNet-5
 class LeNet5(nn.Module):
     """
     LeNet-5 (classic structure): C1 -> S2 -> C3 -> S4 -> C5 -> F6 -> Output
@@ -26,6 +27,7 @@ class LeNet5(nn.Module):
         input_size: int = 32,
         activation: str = "tanh",
         adapt_to_lenet_geometry: bool = False,
+        dropout_p: float = 0.0, 
     ) -> None:
         """
         :param in_channels: Number of input channels (1 for grayscale, 3 for RGB).
@@ -34,6 +36,8 @@ class LeNet5(nn.Module):
         :param activation: "tanh" (classic) or "relu" (modern variant).
         """
         super().__init__()
+
+        self.dropout = nn.Dropout(p=dropout_p) if dropout_p > 0.0 else nn.Identity()
 
         if activation.lower() == "tanh":
             self.act = nn.Tanh()
@@ -164,6 +168,7 @@ class LeNet5(nn.Module):
         # F6 -> activation -> Output logits
         x = self.f6(x)
         x = self.act(x)
+        x = self.dropout(x) # is commonly applied in the FC layers, since most probable overfitting is here
         x = self.out(x)
 
         return x
