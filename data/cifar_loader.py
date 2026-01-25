@@ -36,7 +36,7 @@ CIFAR10_MEAN_STD_BY_SIZE = {
     },
     (64, 64): {
         # manually pre-computed values by usage of helper function above () 
-        "mean": [0.4914,  0.48215, 0.44653],
+        "mean": [0.4914,  0.48216, 0.44653],
         "std":  [0.24043, 0.2370, 0.25569],
     },
 }
