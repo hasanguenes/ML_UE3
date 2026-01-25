@@ -1,3 +1,5 @@
 /data/cifar-10-batches-py
 /data/GTSRB
 /cache_gtsrb
+
+shallow_baselines.*
