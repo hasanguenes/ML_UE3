@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, Subset
 from PIL import Image
 from torchvision import transforms
 
@@ -154,6 +154,9 @@ def get_gtsrb_dataloaders(
     batch_size: int = 128,
     num_workers: int = 0,
     normalize: bool = False,
+    debug_fraction: float = 1.0, # to just load a fraction of the data
+    seed: int = 42,
+
 ):
     """
     Returns (train_loader, test_loader) for GTSRB.
@@ -174,6 +177,23 @@ def get_gtsrb_dataloaders(
     test_dataset = GTSRBDataset(
         root=root, split="test",  transform=tfms, normalize=normalize, img_size=img_size
     )
+
+    if not (0.0 < debug_fraction <= 1.0):
+        raise ValueError("debug_fraction must be in (0, 1].")
+    
+    if debug_fraction < 1.0:
+        # Train subset
+        n_train = max(1, int(len(train_dataset) * debug_fraction))
+        g = torch.Generator().manual_seed(seed)
+        train_idx = torch.randperm(len(train_dataset), generator=g)[:n_train].tolist()
+        train_dataset = Subset(train_dataset, train_idx)
+
+        # Test subset 
+        n_test = max(1, int(len(test_dataset) * debug_fraction))
+        g = torch.Generator().manual_seed(seed + 1) # +1 to avoid same seed as for train
+        test_idx = torch.randperm(len(test_dataset), generator=g)[:n_test].tolist()
+        test_dataset = Subset(test_dataset, test_idx)
+
 
     pin = torch.cuda.is_available()
 

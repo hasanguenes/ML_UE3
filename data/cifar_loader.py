@@ -5,7 +5,6 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 
-
 def unpickle(path: str) -> dict:
     with open(path, "rb") as f:
         return pickle.load(f, encoding="bytes")
