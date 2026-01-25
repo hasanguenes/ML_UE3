@@ -1,11 +1,11 @@
 # run_experiment.py
-#
+# TODO: hier die komentare anpassen!
 # PURPOSE
 # -------
 # Command-line entry point to run ONE LeNet experiment:
 #   - train LeNet5 on a dataset (GTSRB or CIFAR10)
 #   - optionally save run artifacts (weights + config + history + plots)
-#   - optionally run "detailed" evaluation (confusion matrix, per-class recall, balanced accuracy)
+#   - run "detailed" evaluation (confusion matrix, per-class recall, balanced accuracy)
 #
 # This satisfies the assignment requirement:
 # "configurable via command-line options or a configuration file"
@@ -425,12 +425,12 @@ def parse_args() -> argparse.Namespace:
         default="train",
         help="Execution mode. 'train' trains a new model; 'eval' loads a saved run from --run-dir and evaluates it."
     )
-    p.add_argument(
-        "--eval",
-        choices=["none", "basic", "detailed"],
-        default="basic",
-        help="Evaluation level. 'none' skips evaluation; 'basic' prints overall accuracy; 'detailed' also saves confusion matrix, per-class recall and a classification report."
-    )
+    # p.add_argument(
+    #     "--eval",
+    #     choices=["none", "basic", "detailed"],
+    #     default="basic",
+    #     help="Evaluation level. 'none' skips evaluation; 'basic' prints overall accuracy; 'detailed' also saves confusion matrix, per-class recall and a classification report."
+    # )
 
     p.add_argument(
         "--dataset",
@@ -471,6 +471,14 @@ def parse_args() -> argparse.Namespace:
         default=1,
         help="Whether to normalize inputs using the dataset mean/std (1=yes, 0=no)."
     )
+    p.add_argument(
+        "--augment",
+        type=int,
+        choices=[0, 1],
+        default=0,
+        help="Enable data augmentation for the training set (1=yes, 0=no). Applied only to train split."
+    )
+
     p.add_argument(
         "--debug-fraction",
         type=float,
@@ -655,19 +663,18 @@ def main() -> None:
             save_checkpoint(model, run_dir)
             (run_dir / "history.json").write_text(json.dumps(history, indent=2), encoding="utf-8")
 
-            if args.eval == "detailed":
-                title = f"LeNet5 on {args.dataset.upper()} ({args.img_size}x{args.img_size})"
-                metrics = evaluate_detailed_and_save(
-                    model=model,
-                    dataloader=test_loader,
-                    class_names=class_names,
-                    device=device,
-                    out_dir=run_dir,
-                    title=title,
-                )
-                print("\nDetailed eval:")
-                print(f"  overall accuracy : {metrics['overall_accuracy']:.4f}")
-                print(f"  balanced accuracy: {metrics['balanced_accuracy']:.4f}")
+            title = f"LeNet5 on {args.dataset.upper()} ({args.img_size}x{args.img_size})"
+            metrics = evaluate_detailed_and_save(
+                model=model,
+                dataloader=test_loader,
+                class_names=class_names,
+                device=device,
+                out_dir=run_dir,
+                title=title,
+            )
+            print("\nDetailed eval:")
+            print(f"  overall accuracy : {metrics['overall_accuracy']:.4f}")
+            print(f"  balanced accuracy: {metrics['balanced_accuracy']:.4f}")
 
             print(f"\nSaved run to: {run_dir}")
         else:
@@ -710,24 +717,19 @@ def main() -> None:
         model.load_state_dict(state)
 
         # Evaluate
-        if args.eval == "detailed":
-            title = f"LeNet5 on {config.dataset.upper()} ({config.img_size}x{config.img_size})"
-            metrics = evaluate_detailed_and_save(
-                model=model,
-                dataloader=test_loader,
-                class_names=class_names,
-                device=device,
-                out_dir=run_dir,
-                title=title,
-            )
-            print("\nDetailed eval:")
-            print(f"  overall accuracy : {metrics['overall_accuracy']:.4f}")
-            print(f"  balanced accuracy: {metrics['balanced_accuracy']:.4f}")
-            print(f"\nArtifacts written to: {run_dir}")
-        else:
-            y_true, y_pred = collect_predictions(model, test_loader, device=device)
-            acc = float((y_true == y_pred).mean())
-            print(f"Overall accuracy: {acc:.4f}")
+        title = f"LeNet5 on {config.dataset.upper()} ({config.img_size}x{config.img_size})"
+        metrics = evaluate_detailed_and_save(
+            model=model,
+            dataloader=test_loader,
+            class_names=class_names,
+            device=device,
+            out_dir=run_dir,
+            title=title,
+        )
+        print("\nDetailed eval:")
+        print(f"  overall accuracy : {metrics['overall_accuracy']:.4f}")
+        print(f"  balanced accuracy: {metrics['balanced_accuracy']:.4f}")
+        print(f"\nArtifacts written to: {run_dir}")
 
 
 if __name__ == "__main__":
