@@ -99,6 +99,7 @@ class CIFAR10(Dataset):
         flat = self.x[idx]  # (3072,)
         img = torch.from_numpy(flat).view(3, 32, 32).float() / 255.0  # [0,1]
 
+        # we just use it with 32x32
         # optional resize to img_size (e.g., 64x64)
         if self.img_size != (32, 32):
             img = F.interpolate(

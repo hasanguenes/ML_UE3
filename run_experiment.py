@@ -46,6 +46,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
+from torchvision import transforms
+from torchvision.transforms import v2
 import torch.nn as nn
 import torch.optim as optim
 import matplotlib.pyplot as plt
@@ -282,6 +284,7 @@ class Runconfig:
     img_size: int
     normalize: int
     debug_fraction: float
+    augment: int 
     seed: int
 
     # LeNet params
@@ -310,6 +313,7 @@ def make_run_dir(args: argparse.Namespace) -> Path:
 
     tag = (
         f"lenet5__{args.dataset}{args.img_size}"
+        f"__aug{args.augment}" 
         f"__act{args.activation}"
         f"__do{args.dropout}"
         f"__ep{args.epochs}"
@@ -356,12 +360,43 @@ def build_loaders_and_classes(
     normalize: bool,
     debug_fraction: float,
     seed: int,
+    augment: int
 ):
     """
     Returns:
       train_loader, test_loader, class_names, in_channels, num_classes
     """
     if dataset == "gtsrb":
+        use_aug = bool(augment)  # oder augment, je nachdem wie du es speicherst
+
+        # Important: Normalizing happens in dataset -> NO transforms.Normalize here
+        train_tfm_list = [transforms.Resize((img_size, img_size))]
+        test_tfm_list  = [transforms.Resize((img_size, img_size))]
+
+        if use_aug:
+            train_tfm_list += [
+                # Mild lighting changes; keep hue small because sign color matters
+                transforms.ColorJitter(
+                    brightness=0.15,
+                    contrast=0.15,
+                    saturation=0.10,
+                    hue=0.02,
+                ),
+                # Realistic slight camera tilt
+                transforms.RandomRotation(degrees=8),
+                # Slight shift/scale; keep it small to avoid cutting off the sign at 32x32
+                transforms.RandomAffine(
+                    degrees=0,
+                    translate=(0.03, 0.03),
+                    scale=(0.95, 1.05),
+                ),
+                # Optional: mild blur (comment out if you want)
+                # transforms.GaussianBlur(kernel_size=3, sigma=(0.1, 1.0)),
+            ]
+
+        train_transform = transforms.Compose(train_tfm_list + [transforms.ToTensor()])
+        test_transform  = transforms.Compose(test_tfm_list  + [transforms.ToTensor()])
+
         train_loader, test_loader = get_gtsrb_dataloaders(
             root=data_root,
             img_size=(img_size, img_size),
@@ -370,19 +405,41 @@ def build_loaders_and_classes(
             normalize=normalize,
             debug_fraction=debug_fraction,
             seed=seed,
+            train_transform=train_transform,
+            test_transform=test_transform,
         )
         class_names = [str(i) for i in range(43)]
         return train_loader, test_loader, class_names, 3, 43
 
     if dataset == "cifar10":
+
+        use_aug = bool(augment)
+
+        # TODO: add sources!
+        if use_aug:
+            tfms = []
+            if img_size != 32:
+                tfms.append(v2.Resize((img_size, img_size)))
+
+            tfms += [
+                v2.RandomCrop(size=(img_size, img_size), padding=4),
+                v2.RandomHorizontalFlip(p=0.5),
+                v2.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.02),
+            ]
+            train_transform = v2.Compose(tfms)
+        else:
+            train_transform = v2.Resize((img_size, img_size)) if img_size != 32 else None
+
+        test_transform = v2.Resize((img_size, img_size)) if img_size != 32 else None
+
         train_loader, test_loader = get_cifar10_dataloaders(
             root=data_root,
             batch_size=batch_size,
             num_workers=num_workers,
             normalize=normalize,
             img_size=(img_size, img_size),
-            train_transform=None,
-            test_transform=None,
+            train_transform=train_transform,
+            test_transform = test_transform
         )
         class_names = [
             "airplane","automobile","bird","cat","deer",
@@ -595,6 +652,7 @@ def main() -> None:
             normalize=bool(args.normalize),
             debug_fraction=args.debug_fraction,
             seed=args.seed,
+            augment=args.augment
         )
 
         print("Train samples:", len(train_loader.dataset))
@@ -623,6 +681,7 @@ def main() -> None:
                 img_size=args.img_size,
                 normalize=args.normalize,
                 debug_fraction=args.debug_fraction,
+                augment=args.augment,
                 seed=args.seed,
                 in_channels=in_channels,
                 num_classes=num_classes,
@@ -641,6 +700,7 @@ def main() -> None:
         # Train (your existing function)
         run_tag = (
             f"{args.dataset}{args.img_size}"
+            f"_aug{args.augment}"
             f"_do{args.dropout}_act{args.activation}"
             f"_ep{args.epochs}_{args.optimizer}{args.lr}"
             f"_dbg{args.debug_fraction}"
@@ -663,7 +723,7 @@ def main() -> None:
             save_checkpoint(model, run_dir)
             (run_dir / "history.json").write_text(json.dumps(history, indent=2), encoding="utf-8")
 
-            title = f"LeNet5 on {args.dataset.upper()} ({args.img_size}x{args.img_size})"
+            title = f"LeNet5 on {args.dataset.upper()} ({args.img_size}x{args.img_size}, aug={args.augment})"
             metrics = evaluate_detailed_and_save(
                 model=model,
                 dataloader=test_loader,
@@ -700,6 +760,7 @@ def main() -> None:
             normalize=bool(config.normalize),
             debug_fraction=1.0,  # evaluate on full set by default
             seed=config.seed,
+            augment=config.augment
         )
 
         # Rebuild model consistently with config

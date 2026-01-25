@@ -156,7 +156,8 @@ def get_gtsrb_dataloaders(
     normalize: bool = False,
     debug_fraction: float = 1.0, # to just load a fraction of the data
     seed: int = 42,
-
+    train_transform=None,
+    test_transform=None,
 ):
     """
     Returns (train_loader, test_loader) for GTSRB.
@@ -166,16 +167,24 @@ def get_gtsrb_dataloaders(
     """
     img_size = tuple(img_size)
 
-    tfms = transforms.Compose([
-        transforms.Resize(img_size),
-        transforms.ToTensor(),  # -> float in [0,1]
-    ])
+    if train_transform is None:
+        train_transform = transforms.Compose([
+            transforms.Resize(img_size),
+            transforms.ToTensor(),
+        ])
+
+    if test_transform is None:
+        test_transform = transforms.Compose([
+            transforms.Resize(img_size),
+            transforms.ToTensor(),
+        ])
+
 
     train_dataset = GTSRBDataset(
-        root=root, split="train", transform=tfms, normalize=normalize, img_size=img_size
+        root=root, split="train", transform=train_transform, normalize=normalize, img_size=img_size
     )
     test_dataset = GTSRBDataset(
-        root=root, split="test",  transform=tfms, normalize=normalize, img_size=img_size
+        root=root, split="test",  transform=test_transform, normalize=normalize, img_size=img_size
     )
 
     if not (0.0 < debug_fraction <= 1.0):
