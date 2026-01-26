@@ -5,3 +5,6 @@
 shallow_baselines.*
 /runs/GTSRB
 /runs/CIFAR10
+
+/runs
+/sweep_logs_lenet
