@@ -8,3 +8,5 @@ shallow_baselines.*
 
 /runs
 /sweep_logs_lenet
+/sweep_logs_lenet_cifar
+/sweep_logs_lenet_cifar_test

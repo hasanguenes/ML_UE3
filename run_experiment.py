@@ -456,7 +456,7 @@ def build_loaders_and_classes(
                 # Enforces left-right invariance; doubles effective views for many classes
                 v2.RandomHorizontalFlip(p=0.5),
                 # Simulates lighting/color variations -> reduces overfitting to color/illumination
-                v2.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
+                # v2.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
             ])
         else:
             train_transform = None

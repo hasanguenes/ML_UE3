@@ -279,14 +279,13 @@ def train_model(
         title_suffix = f" ({run_tag})" if run_tag else ""
 
         try:
-            fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(12, 4))
+            fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(12, 4), constrained_layout=True)
 
             # Loss subplot
             axes[0].plot(epochs_axis, history["train_loss"], label="train loss")
             axes[0].plot(epochs_axis, history["eval_loss"], label="eval loss")
             axes[0].set_xlabel("epoch")
             axes[0].set_ylabel("loss")
-            axes[0].set_title("Loss" + title_suffix)
             axes[0].grid(True)
             axes[0].legend()
 
@@ -295,13 +294,15 @@ def train_model(
             axes[1].plot(epochs_axis, history["eval_acc"], label="eval accuracy")
             axes[1].set_xlabel("epoch")
             axes[1].set_ylabel("accuracy")
-            axes[1].set_title("Accuracy" + title_suffix)
             axes[1].grid(True)
             axes[1].legend()
 
-            fig.tight_layout()
-            fig.savefig(file_name, dpi=curves_dpi)
+            # One title for the whole figure
+            fig.suptitle(title_suffix, fontsize=10)
+
+            fig.savefig(file_name, dpi=curves_dpi, bbox_inches="tight")
             plt.close(fig)
+
 
             print(f"Saved training curves to: {file_name}")
         except Exception as e:
