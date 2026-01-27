@@ -120,6 +120,32 @@ def balanced_accuracy_from_cm(cm: np.ndarray) -> float:
         recalls = np.where(row_sums > 0, np.diag(cm) / row_sums, 0.0)
     return float(np.mean(recalls))
 
+def load_gtsrb_class_names_from_csv(csv_path: str | Path) -> List[str]:
+    """
+    Expects a CSV like signnames.csv with columns: ClassId, SignName
+    Returns list of length 43 where index = ClassId.
+    """
+    csv_path = Path(csv_path)
+    lines = csv_path.read_text(encoding="utf-8").splitlines()
+    header = lines[0].split(",")
+
+    # find column indices robustly
+    class_col = header.index("ClassId") if "ClassId" in header else 0
+    name_col  = header.index("SignName") if "SignName" in header else 1
+
+    mapping = {}
+    for line in lines[1:]:
+        if not line.strip():
+            continue
+        parts = [p.strip().strip('"') for p in line.split(",", maxsplit=2)]
+        cid = int(parts[class_col])
+        name = parts[name_col]
+        mapping[cid] = name
+
+    # build ordered list 0..42
+    return [mapping[i] for i in range(43)]
+
+
 
 # =============================================================================
 # 2) Detailed evaluation: collect predictions once, then compute metrics/plots
@@ -176,14 +202,14 @@ def plot_confusion_matrix(
     ax.set_xlabel("Predicted label")
     ax.set_ylabel("True label")
 
-    if len(class_names) <= 20:
-        ax.set_xticks(range(len(class_names)))
-        ax.set_yticks(range(len(class_names)))
-        ax.set_xticklabels(class_names, rotation=90)
-        ax.set_yticklabels(class_names)
-    else:
-        ax.set_xticks([])
-        ax.set_yticks([])
+    # if len(class_names) <= 20:
+    ax.set_xticks(range(len(class_names)))
+    ax.set_yticks(range(len(class_names)))
+    ax.set_xticklabels(class_names, rotation=90)
+    ax.set_yticklabels(class_names)
+    # else:
+    #     ax.set_xticks([])
+    #     ax.set_yticks([])
 
     fig.tight_layout()
     fig.savefig(out_path, dpi=dpi)
@@ -437,7 +463,61 @@ def build_loaders_and_classes(
             train_transform=train_transform,
             test_transform=test_transform,
         )
+        # Example: if your CSV is at <data_root>/signnames.csv
+        csv_path = Path(data_root) / "signnames.csv"
+        if csv_path.exists():
+            class_names = load_gtsrb_class_names_from_csv(csv_path)
+        else:
+            class_names = [str(i) for i in range(43)]  # fallback
+
+        # class_names = [
+        #     "Speed limit (20km/h)",
+        #     "Speed limit (30km/h)",
+        #     "Speed limit (50km/h)",
+        #     "Speed limit (60km/h)",
+        #     "Speed limit (70km/h)",
+        #     "Speed limit (80km/h)",
+        #     "End of speed limit (80km/h)",
+        #     "Speed limit (100km/h)",
+        #     "Speed limit (120km/h)",
+        #     "No passing",
+        #     "No passing for vehicles over 3.5 metric tons",
+        #     "Right-of-way at the next intersection",
+        #     "Priority road",
+        #     "Yield",
+        #     "Stop",
+        #     "No vehicles",
+        #     "Vehicles over 3.5 metric tons prohibited",
+        #     "No entry",
+        #     "General caution",
+        #     "Dangerous curve to the left",
+        #     "Dangerous curve to the right",
+        #     "Double curve",
+        #     "Bumpy road",
+        #     "Slippery road",
+        #     "Road narrows on the right",
+        #     "Road work",
+        #     "Traffic signals",
+        #     "Pedestrians",
+        #     "Children crossing",
+        #     "Bicycles crossing",
+        #     "Beware of ice/snow",
+        #     "Wild animals crossing",
+        #     "End of all speed and passing limits",
+        #     "Turn right ahead",
+        #     "Turn left ahead",
+        #     "Ahead only",
+        #     "Go straight or right",
+        #     "Go straight or left",
+        #     "Keep right",
+        #     "Keep left",
+        #     "Roundabout mandatory",
+        #     "End of no passing",
+        #     "End of no passing by vehicles over 3.5 metric tons",
+        # ]
+
         class_names = [str(i) for i in range(43)]
+
         return train_loader, test_loader, class_names, 3, 43
 
     if dataset == "cifar10":
