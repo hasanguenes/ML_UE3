@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 RUN_EXPERIMENT = Path(__file__).parent / "run_experiment.py"
-LOG_DIR = Path(__file__).parent / "sweep_logs_lenet_cifar_test"
+LOG_DIR = Path(__file__).parent / "sweep_logs_lenet"
 
 VARIED_KEYS = ["dropout", "lr", "augment", "epochs"]  
 
@@ -74,7 +74,7 @@ def make_configs() -> List[Dict[str, Any]]:
     base = dict(
         model="lenet5",       # if your run_experiment expects this argument; otherwise remove
         mode="train",
-        runs_dir="runs/test",
+        runs_dir="runs",
         save_run=1,
         device="auto",
         num_workers=0,        # Windows: safest
@@ -82,9 +82,9 @@ def make_configs() -> List[Dict[str, Any]]:
         normalize=1,
         debug_fraction=1,   # set e.g. 0.05 to test quickly
         img_size=32,          # keep fixed if you decided to stick to 32x32
-        # dataset="gtsrb",      # or "cifar10"
-        dataset="cifar10",     
-        data_root="data",  # adjust if needed
+        dataset="gtsrb",      # or "cifar10"
+        # dataset="cifar10",     
+        data_root="data/GTSRB",  # adjust if needed
     )
 
     # Grid: change only what you actually want to compare
@@ -96,15 +96,17 @@ def make_configs() -> List[Dict[str, Any]]:
     augments = [1]
     # epochs = [5, 10, 15, 20, 25, 30] 
     # epochs = [35, 40] 
-    epochs = [90] 
+    epochs = [1] 
     batch_sizes = [128]
 
     # Grid: change only what you actually want to compare
     activations = ["tanh"]
-    dropouts = [0.0, 0.2, 0.5]
+    # dropouts = [0.0, 0.2, 0.5]
+    dropouts = [0.0]
     lrs = [1e-3]
     augments = [0, 1]
     epochs = [5, 10, 15, 20, 25, 30] 
+    epochs = [1]
     batch_sizes = [128]
 
     configs: List[Dict[str, Any]] = []
