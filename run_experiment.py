@@ -822,7 +822,7 @@ def main() -> None:
         # Save artifacts
         if run_dir is not None:
             save_checkpoint(model, run_dir)
-            (run_dir / "history.json").write_text(json.dumps(history, indent=2), encoding="utf-8")
+            (run_dir / " .json").write_text(json.dumps(history, indent=2), encoding="utf-8")
 
             title = f"{args.model.upper()} on {args.dataset.upper()} ({args.img_size}x{args.img_size}, aug={args.augment})"
 

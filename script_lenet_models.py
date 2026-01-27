@@ -92,6 +92,17 @@ def make_configs() -> List[Dict[str, Any]]:
     dropouts = [0.0, 0.2, 0.5]
     # lrs = [1e-3, 5e-4]
     lrs = [1e-3]
+    # augments = [0, 1]
+    augments = [1]
+    # epochs = [5, 10, 15, 20, 25, 30] 
+    # epochs = [35, 40] 
+    epochs = [90] 
+    batch_sizes = [128]
+
+    # Grid: change only what you actually want to compare
+    activations = ["tanh"]
+    dropouts = [0.0, 0.2, 0.5]
+    lrs = [1e-3]
     augments = [0, 1]
     epochs = [5, 10, 15, 20, 25, 30] 
     batch_sizes = [128]

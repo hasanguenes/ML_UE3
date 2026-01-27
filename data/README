@@ -16,8 +16,10 @@ data/
    ├─ Final_Training_Images/
    │  ├─ 00000/
    │  │  └─ *.ppm
+      │  └─ GT-00000.csv
    │  ├─ 00001/
    │  │  └─ *.ppm
+      │  └─ GT-00001.csv
    │  └─ ...
    └─ Final_Test_Images/
       ├─ *.ppm
