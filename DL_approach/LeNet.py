@@ -1,23 +1,24 @@
-# TODO: add source links!
-
 import torch
 import torch.nn as nn
 
-# I added optional dropout opportunity to LeNet-5
+# Source links:
+# https://www.digitalocean.com/community/tutorials/writing-lenet5-from-scratch-in-python
+# https://www.geeksforgeeks.org/computer-vision/lenet-5-architecture/
+# https://github.com/lychengrex/LeNet-5-Implementation-Using-Pytorch/blob/master/LeNet-5%20Implementation%20Using%20Pytorch.ipynb
+# Added optional dropout opportunity to LeNet-5
 class LeNet5(nn.Module):
     """
     LeNet-5 (classic structure): C1 -> S2 -> C3 -> S4 -> C5 -> F6 -> Output
 
-    Matches common descriptions (incl. your Medium link):
-      - Input: 32x32 (originally grayscale; for RGB set in_channels=3)
-      - C1: 6 feature maps, 5x5 conv, stride 1, no padding (valid)
-      - S2: 2x2 average pooling, stride 2
-      - C3: 16 feature maps, 5x5 conv, stride 1, no padding
-      - S4: 2x2 average pooling, stride 2
-      - C5: 120 feature maps, 5x5 conv, stride 1, no padding
-            (for 32x32 input, S4 output is 5x5, so C5 becomes 1x1)
-      - F6: 84 units
-      - Output: num_classes units (originally 10 digits)
+    - Input: 32x32 (originally grayscale; for RGB set in_channels=3)
+    - C1: 6 feature maps, 5x5 conv, stride 1, no padding (valid)
+    - S2: 2x2 average pooling, stride 2
+    - C3: 16 feature maps, 5x5 conv, stride 1, no padding
+    - S4: 2x2 average pooling, stride 2
+    - C5: 120 feature maps, 5x5 conv, stride 1, no padding
+        (for 32x32 input, S4 output is 5x5, so C5 becomes 1x1)
+    - F6: 84 units
+    - Output: num_classes units (originally 10 digits)
     """
 
     def __init__(
