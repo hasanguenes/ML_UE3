@@ -15,6 +15,16 @@ from pathlib import Path
 from datetime import datetime
 import matplotlib.pyplot as plt
 
+# looked at sources:
+# https://github.com/tuwien-musicir/DeepLearning_Tutorial/blob/master/Car_recognition.ipynb
+# https://www.digitalocean.com/community/tutorials/writing-lenet5-from-scratch-in-python
+
+# ------------------------------------------------------------
+# Moves a batch of data to the specified device.
+#
+# non_blocking=True allows asynchronous transfers when
+# DataLoader uses pinned memory (pin_memory=True).
+# ------------------------------------------------------------
 def _move_to_device(
     images: torch.Tensor,
     labels: torch.Tensor,
@@ -33,7 +43,11 @@ def _move_to_device(
     labels = labels.to(device=device, non_blocking=True)
     return images, labels
 
-
+# ------------------------------------------------------------
+# Counts the number of correct predictions in a batch.
+#
+# The model outputs raw logits (no softmax).
+# ------------------------------------------------------------
 def _count_correct_predictions(
     logits: torch.Tensor,
     labels: torch.Tensor,
@@ -50,7 +64,12 @@ def _count_correct_predictions(
     correct = (preds == labels).sum().item()
     return int(correct)
 
-
+# ------------------------------------------------------------
+# Runs one full training epoch.
+#
+# A single epoch consists of a complete pass over the
+# training DataLoader.
+# ------------------------------------------------------------
 def train_one_epoch(
     model: nn.Module,
     dataloader: torch.utils.data.DataLoader,
@@ -61,11 +80,11 @@ def train_one_epoch(
     """
     Trains the model for exactly one epoch (one full pass over the dataloader).
 
-    What happens in each batch:
-      1) forward pass:  logits = model(images)
-      2) loss:          loss = criterion(logits, labels)
-      3) backward:      loss.backward()
-      4) update step:   optimizer.step()
+    For each batch:
+      1) forward pass
+      2) loss
+      3) backward
+      4) update step
 
     :param model: The neural network (nn.Module).
     :param dataloader: Iterates over the training set batches.
@@ -74,7 +93,7 @@ def train_one_epoch(
     :param device: CPU or GPU device.
     :return: (epoch_loss_mean, epoch_accuracy)
     """
-    # IMPORTANT: model.train() enables training-specific behaviors, e.g. Dropout active, BatchNorm updates running stats.
+    # model.train() enables training-specific behaviors, e.g. Dropout active, BatchNorm updates running stats.
     model.train()
 
     # Accumulators over the *entire epoch* (not just per batch)
@@ -116,7 +135,9 @@ def train_one_epoch(
 
     return epoch_loss, epoch_acc
 
-
+# ------------------------------------------------------------
+# Evaluates the model
+# ------------------------------------------------------------
 @torch.no_grad()
 def evaluate(
     model: nn.Module,
@@ -125,7 +146,7 @@ def evaluate(
     device: torch.device,
 ) -> Tuple[float, float]:
     """
-    Evaluates a model on a dataloader (validation or test).
+    Evaluates a model on a dataloader.
 
     Differences to training:
       - model.eval() disables training-specific behaviors (Dropout off, BatchNorm uses stored stats).
@@ -159,7 +180,11 @@ def evaluate(
 
     return epoch_loss, epoch_acc
 
-
+# ------------------------------------------------------------
+# Full training loop over multiple epochs.
+#
+# Tracks losses, accuracies, and runtime per epoch.
+# ------------------------------------------------------------
 def train_model(
     model: nn.Module,
     trainloader: torch.utils.data.DataLoader,
@@ -174,23 +199,22 @@ def train_model(
     run_tag: str = "",   # e.g. "GTSRB32_Adam_lr1e-3_aug"
 ) -> Tuple[nn.Module, Dict[str, List[float]]]:
     """
-    Full training loop running for a fixed number of epochs.
+    Trains a model for a fixed number of epochs.
 
-    This function:
-      - moves the model to the chosen device (CPU/GPU)
-      - repeats:
-          train_one_epoch(...)
-          evaluate(...)
-      - records metrics for plotting/analysis (loss, accuracy, times)
+    For each epoch:
+      - run one training epoch
+      - run evaluation
+      - measure execution time
+      - store metrics for analysis and plotting
 
-    :param model: The neural network (nn.Module).
-    :param trainloader: DataLoader over training data (shuffle=True recommended).
-    :param evalloader: DataLoader over evaluation data (shuffle=False recommended).
-    :param optimizer: Optimizer (Adam/SGD/...).
-    :param criterion: Loss function (CrossEntropyLoss for multi-class classification).
-    :param device: CPU or GPU.
-    :param epochs: Number of full passes over the training data.
-    :return: (trained_model, history_dict)
+    :param model: Neural network model.
+    :param trainloader: Training DataLoader.
+    :param evalloader: Evaluation DataLoader.
+    :param optimizer: Optimizer.
+    :param criterion: Loss function.
+    :param device: Target device.
+    :param epochs: Number of epochs.
+    :return: Tuple (trained_model, history).
     """
     model.to(device=device)
 
@@ -210,7 +234,8 @@ def train_model(
 
         # ---- Training phase (timed) ----
         if device.type == "cuda":
-            # synchronize before/after timing so you measure actual GPU execution time
+            # Synchronize to ensure all queued CUDA operations have completed
+            # so wall-clock timing reflects actual GPU execution
             torch.cuda.synchronize()
         t0 = time.perf_counter()
 
@@ -252,7 +277,7 @@ def train_model(
         history["train_time_s"].append(train_time_s)
         history["eval_time_s"].append(eval_time_s)
 
-        # Console output (minimal but informative)
+        # Console output 
         print(f"Train Loss: {train_loss:.4f} | Train Acc: {train_acc:.4f} | Time: {train_time_s:.2f}s")
         print(f"Eval  Loss: {eval_loss:.4f} | Eval  Acc: {eval_acc:.4f} | Time: {eval_time_s:.2f}s")
 

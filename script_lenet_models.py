@@ -37,13 +37,12 @@ def run_one(cfg: Dict[str, Any], idx: int, total: int) -> int:
 
     cmd = [sys.executable, str(RUN_EXPERIMENT)] + dict_to_cli_args(cfg)
 
-    # ONLY show the parameters that change (no full command, no full config)
+    # ONLY show the parameters that change 
     summary = format_varied(cfg)
     header = f"=== RUN {idx}/{total} | {summary} ===\n"
     print(header, end="", flush=True)
 
     with log_path.open("w", encoding="utf-8") as f:
-        # If you also want the log header to be minimal, keep it like this:
         f.write(header)
 
         proc = subprocess.Popen(
@@ -72,7 +71,7 @@ def make_configs() -> List[Dict[str, Any]]:
     Keep it small first, then expand.
     """
     base = dict(
-        model="lenet5",       # if your run_experiment expects this argument; otherwise remove
+        model="lenet5",       
         mode="train",
         runs_dir="runs",
         save_run=1,
@@ -81,23 +80,13 @@ def make_configs() -> List[Dict[str, Any]]:
         seed=42,
         normalize=1,
         debug_fraction=1,   # set e.g. 0.05 to test quickly
-        img_size=32,          # keep fixed if you decided to stick to 32x32
+        img_size=32,         
         dataset="gtsrb",      # or "cifar10"
         # dataset="cifar10",     
-        data_root="data/GTSRB",  # adjust if needed
+        data_root="data/GTSRB",  
     )
 
-    # Grid: change only what you actually want to compare
-    activations = ["tanh"]
-    dropouts = [0.0, 0.2, 0.5]
-    # lrs = [1e-3, 5e-4]
-    lrs = [1e-3]
-    # augments = [0, 1]
-    augments = [1]
-    # epochs = [5, 10, 15, 20, 25, 30] 
-    # epochs = [35, 40] 
-    epochs = [1] 
-    batch_sizes = [128]
+
 
     # Grid: change only what you actually want to compare
     activations = ["tanh"]
@@ -129,6 +118,7 @@ def make_configs() -> List[Dict[str, Any]]:
 
     return configs
 
+# debug
 DONE = {
     # (0.0, 1e-3, 0, 5),   # dropout, lr, augment, epochs
     # (0.0, 1e-3, 0, 10),

@@ -1,44 +1,71 @@
 # run_experiment.py
-# TODO: hier die komentare anpassen!
+#
 # PURPOSE
 # -------
-# Command-line entry point to run ONE deep-learning experiment from the terminal.
-# Supported:
-#   - Models: LeNet5, ResNet18
-#   - Datasets: GTSRB, CIFAR10
+# Command-line entry point for running a single deep-learning experiment.
+# The script supports training and evaluation of image classification models
+# in a fully configurable and reproducible way via CLI arguments.
 #
-# What this script does:
-#   - trains the selected model on the selected dataset
-#   - optionally applies training-time augmentation (train split only)
-#   - evaluates on the test set (confusion matrix, per-class recall, balanced accuracy, report)
-#   - optionally saves a complete run folder (weights + config + history + plots)
+# Supported models:
+#   - LeNet-5
+#   - ResNet-18
 #
-# This satisfies the assignment requirement:
-# "configurable via command-line options or a configuration file"
-# (no code edits required to change hyperparameters or evaluation behavior).
+# Supported datasets:
+#   - GTSRB (German Traffic Sign Recognition Benchmark)
+#   - CIFAR-10
 #
-# HOW TO RUN (examples)
-# ---------------------
-# 1) Show CLI options (including defaults):
+# FUNCTIONALITY
+# -------------
+# In training mode (--mode train), the script:
+#   - builds the selected dataset and model
+#   - optionally applies data augmentation (training split only)
+#   - trains the model for a fixed number of epochs
+#   - evaluates the trained model on the test set
+#   - computes detailed evaluation metrics:
+#       * overall accuracy
+#       * balanced accuracy
+#       * confusion matrix
+#       * per-class recall
+#   - optionally saves a complete run directory containing:
+#       * model weights (model.pth)
+#       * configuration (config.json)
+#       * training history (history.json)
+#       * evaluation metrics and plots
+#
+# In evaluation mode (--mode eval), the script:
+#   - loads a previously saved run directory
+#   - reconstructs the model and dataloaders from config.json
+#   - evaluates the model again on the test set
+#   - stores evaluation artifacts in the same run directory
+#
+# CONFIGURABILITY
+# ---------------
+# All hyperparameters, model options, dataset settings, and runtime behavior
+# are configurable via command-line arguments. No code modifications are
+# required to change experimental settings.
+#
+# USAGE EXAMPLES 
+# --------------
+# 1) Show all available CLI options:
 #    python run_experiment.py --help
 #
-# 2) Train LeNet5 on a small GTSRB subset (debug), with augmentation and saved artifacts:
+# 2) Train LeNet-5 on a small GTSRB subset (debug run), with augmentation (most of the options here do not have to b eexplicitly set, they are default values):
 #    python run_experiment.py --mode train --model lenet5 --dataset gtsrb --data-root data/GTSRB ^
 #        --epochs 3 --batch-size 128 --lr 1e-3 --dropout 0.2 --activation tanh ^
 #        --normalize 1 --augment 1 --debug-fraction 0.05 --save-run 1
 #
-# 3) Train ResNet18 on full GTSRB (optionally pretrained, optionally frozen backbone), save artifacts:
+# 3) Train ResNet-18 on the full GTSRB dataset using ImageNet pretraining (most of the options here do not have to b eexplicitly set, they are default values):
 #    python run_experiment.py --mode train --model resnet18 --dataset gtsrb --data-root data/GTSRB ^
 #        --epochs 10 --batch-size 128 --lr 1e-3 --dropout 0.3 --pretrained 1 --freeze-backbone 1 ^
 #        --normalize 1 --augment 1 --debug-fraction 1.0 --save-run 1
 #
-# 4) Evaluate a saved run again (no training). Uses the stored config.json to rebuild model + loaders:
+# 4) Re-evaluate a previously saved run:
 #    python run_experiment.py --mode eval --run-dir runs/RESNET18/GTSRB/<RUN_FOLDER>
 #
 # NOTE (Windows)
-# --------------
-# Keep the "if __name__ == '__main__': main()" guard at the end,
-# otherwise DataLoader multiprocessing can break.
+# -----------------------
+# The "if __name__ == '__main__': main()" guard at the end of this file is
+# required on Windows to avoid issues with DataLoader multiprocessing.
 
 
 from __future__ import annotations
@@ -61,7 +88,7 @@ import matplotlib.pyplot as plt
 
 from sklearn.metrics import confusion_matrix, classification_report
 
-# ---- Adjust these imports to your filenames ----
+# ---- own libraries / frameworks ----
 from data.gtsrb_loader import get_gtsrb_dataloaders
 from data.cifar_loader import get_cifar10_dataloaders
 from DL_approach.train_utils import train_model
@@ -75,10 +102,7 @@ from DL_approach.resnet import ResNet18
 # =============================================================================
 
 def set_seed(seed: int) -> None:
-    """
-    Makes randomness more reproducible (not perfect, but good enough for class projects).
-    Affects weight init, shuffles, your debug subset selection, etc.
-    """
+
     torch.manual_seed(seed)
     np.random.seed(seed)
     if torch.cuda.is_available():
@@ -109,11 +133,12 @@ def slugify(s: str, max_len: int = 140) -> str:
 
 def balanced_accuracy_from_cm(cm: np.ndarray) -> float:
     """
-    Balanced accuracy (multi-class):
-      mean over classes of recall_k
+    Balanced accuracy for multi-class classification.
+
+    Defined as the mean recall over all classes:
     recall_k = cm[k,k] / sum(cm[k,:])
 
-    Useful when classes are imbalanced.
+    This metric compensates for class imbalance by weighting all classes equally.
     """
     row_sums = cm.sum(axis=1)
     with np.errstate(divide="ignore", invalid="ignore"):
@@ -164,7 +189,7 @@ def collect_predictions(
     - confusion matrix needs all y_true and y_pred
     - classification_report needs all y_true and y_pred
     """
-    model.eval()  # disables dropout during evaluation automatically
+    model.eval()  #  # disables dropout 
 
     y_true: List[int] = []
     y_pred: List[int] = []
@@ -224,7 +249,7 @@ def plot_per_class_recall(
     dpi: int = 200,
 ) -> None:
     """
-    Plots per-class recall (= per-class accuracy in your previous terminology):
+    Plots per-class recall 
       recall_k = cm[k,k] / sum(cm[k,:])
     """
     row_sums = cm.sum(axis=1)
@@ -463,7 +488,7 @@ def build_loaders_and_classes(
             train_transform=train_transform,
             test_transform=test_transform,
         )
-        # Example: if your CSV is at <data_root>/signnames.csv
+
         csv_path = Path(data_root) / "signnames.csv"
         if csv_path.exists():
             class_names = load_gtsrb_class_names_from_csv(csv_path)
@@ -528,7 +553,6 @@ def build_loaders_and_classes(
         
         use_aug = bool(augment)
 
-        # TODO: source for augmentation
         if use_aug:
             train_transform = v2.Compose([
                 # Adds small random translations -> improves shift/position robustness
@@ -567,9 +591,7 @@ def make_optimizer(
     lr: float,
     weight_decay: float,
 ) -> optim.Optimizer:
-    """
-    You can extend this later if you need more options (SGD momentum, etc.).
-    """
+
     if optimizer_name == "adam":
         return optim.Adam(params, lr=lr, weight_decay=weight_decay)
     if optimizer_name == "sgd":
@@ -600,12 +622,6 @@ def parse_args() -> argparse.Namespace:
         default="train",
         help="Execution mode. 'train' trains a new model; 'eval' loads a saved run from --run-dir and evaluates it."
     )
-    # p.add_argument(
-    #     "--eval",
-    #     choices=["none", "basic", "detailed"],
-    #     default="basic",
-    #     help="Evaluation level. 'none' skips evaluation; 'basic' prints overall accuracy; 'detailed' also saves confusion matrix, per-class recall and a classification report."
-    # )
 
     p.add_argument(
         "--dataset",
@@ -872,7 +888,7 @@ def main() -> None:
             )
             save_config(config, run_dir)
 
-        # Train (your existing function)
+        # Train 
         run_tag = (
             f"{args.model}_{args.dataset}{args.img_size}"
             f"_aug{args.augment}"
@@ -889,7 +905,7 @@ def main() -> None:
         model, history = train_model(
             model=model,
             trainloader=train_loader,
-            evalloader=test_loader,   # you currently use test as eval (consistent with your workflow)
+            evalloader=test_loader,  
             optimizer=optimizer,
             criterion=criterion,
             device=device,
