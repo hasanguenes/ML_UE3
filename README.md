@@ -10,8 +10,6 @@ First, we want to mention that we were inspired by external resources and AI dur
 ```text
 ML_UE3/
 ├── data/
-│   ├── cifar-10-batches-py/      # CIFAR-10 dataset in its original batch format
-│   ├── GTSRB/                    # German Traffic Sign Recognition Benchmark (GTSRB) dataset
 │   ├── cifar_loader.py           # Dataset loader for CIFAR-10
 │   ├── gtsrb_loader.py           # Dataset loader for GTSRB
 │   └── README                    # Describes how the Dataset loaders expect the dataset folders to be structured
@@ -50,7 +48,11 @@ pip install -r requirements.txt
 
 # Expected data structure
 
-das mit download erklären
+Since the datasets are too big of a size, we provide a link where you can download the datasets already in the right structure. You just have to download this zip file:
+
+https://1drv.ms/u/c/55f6a2f9c30abbe2/IQAtnNpT3olDR46UVxJVCASeAXLBjZmauuej0RQ22BV2oBY?e=ubMOl9
+
+And unzip this zip file in the data folder.
 
 # Running the DL models
 
@@ -178,3 +180,5 @@ python run_experiment.py \
 ```
 
 # Information about ML algorithms
+
+The ML algorithms have been implemented in a Jupyter Notebook in a classical way. Since they are not the main focus here, we decided to only implement them in a Notebook (And due to timing problems).
