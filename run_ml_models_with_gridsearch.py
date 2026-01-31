@@ -83,7 +83,7 @@ class Timer:
     def start(self):
         """Start the main timer."""
         self.start_time = time.time()
-        print(f"\n⏱️  Timer started at {datetime.now().strftime('%H:%M:%S')}")
+        print(f"\nTimer started at {datetime.now().strftime('%H:%M:%S')}")
     
     def lap_start(self, name: str):
         """Start a named lap/section."""
@@ -96,7 +96,7 @@ class Timer:
         elapsed = time.time() - self._lap_start[name]
         self.lap_times[name] = elapsed
         if print_result:
-            print(f"⏱️  [{name}] completed in {self._format_time(elapsed)}")
+            print(f"[{name}] completed in {self._format_time(elapsed)}")
         return elapsed
     
     def elapsed(self) -> float:
@@ -109,7 +109,7 @@ class Timer:
         """Stop timer and print total time."""
         total = self.elapsed()
         print(f"\n{'='*60}")
-        print(f"⏱️  TOTAL EXECUTION TIME: {self._format_time(total)}")
+        print(f"TOTAL EXECUTION TIME: {self._format_time(total)}")
         print(f"{'='*60}")
         return total
     
@@ -118,7 +118,7 @@ class Timer:
         if not self.lap_times:
             return
         print(f"\n{'='*60}")
-        print("⏱️  TIME BREAKDOWN")
+        print("TIME BREAKDOWN")
         print(f"{'='*60}")
         for name, elapsed in self.lap_times.items():
             pct = (elapsed / self.elapsed() * 100) if self.elapsed() > 0 else 0
