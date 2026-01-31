@@ -261,7 +261,7 @@ def extract_sift_bovw(Xtr: np.ndarray, Xte: np.ndarray, n_clusters: int = 100):
     
     timer.lap_start("SIFT + BoVW")
     
-    from models.sift_bovw import BOV
+    from sift_bovw import BOV
     bov = BOV(no_clusters=n_clusters)
     
     print("  Training vocabulary...")
