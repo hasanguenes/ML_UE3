@@ -1,0 +1,5 @@
+model,feature,feat_time_train_s,feat_time_test_s,model_train_time_s,model_test_time_s,accuracy,balanced_accuracy,f1_macro,cv_score,best_params
+LR_l2_ridge,ColorHist_bins8,1.5511,0.2797,413.7821,0.0092,0.3176,0.3176,0.3107,0.3179,{'clf__C': 10}
+RF,ColorHist_bins8,1.5511,0.2797,4.2709,0.0408,0.4196,0.4196,0.4159,0.4085,"{'max_depth': 15, 'n_estimators': 90}"
+LR_no_penalty,SIFT_BoVW,36.6059,7.1310,1.2358,0.0024,0.3121,0.3121,0.3043,0.3034,-
+RF,SIFT_BoVW,36.6059,7.1310,1.8718,0.0248,0.2866,0.2866,0.2738,0.2811,"{'max_depth': 15, 'n_estimators': 90}"

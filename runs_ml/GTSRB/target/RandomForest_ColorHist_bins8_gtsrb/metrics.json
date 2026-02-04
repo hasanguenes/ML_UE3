@@ -1,0 +1,8 @@
+{
+  "overall_accuracy": 0.23127474267616785,
+  "balanced_accuracy": 0.14202866009210802,
+  "f1_macro": 0.14516221750312833,
+  "train_time_seconds": 3.7916740576426187,
+  "test_time_seconds": 0.0710759162902832,
+  "cv_score": 0.6463820665504647
+}

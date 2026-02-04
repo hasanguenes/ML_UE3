@@ -1,0 +1,11 @@
+{
+  "overall_accuracy": 0.4974663499604117,
+  "balanced_accuracy": 0.40649582834871006,
+  "f1_macro": 0.42681625653239863,
+  "cv_mean_test_score": 0.5611721096835037,
+  "train_time_seconds": 444.63912574450177,
+  "test_time_seconds": 0.004587888717651367,
+  "cv_std_test_score": 0.0029974048260804323,
+  "rank": 1,
+  "cv_score": 0.5611721096835037
+}
