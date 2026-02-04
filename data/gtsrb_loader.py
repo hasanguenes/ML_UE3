@@ -8,7 +8,6 @@ from torch.utils.data import Dataset, DataLoader, Subset
 from PIL import Image
 from torchvision import transforms
 
-# helper function to compute mean and std
 def compute_gtsrb_train_mean_std(root: str, img_size=(64, 64)):
     train_dir = Path(root) / "Final_Training_Images"
     if not train_dir.exists():
@@ -95,9 +94,6 @@ class GTSRBDataset(Dataset):
         self.mean = torch.tensor(mean, dtype=torch.float32).view(3, 1, 1)
         self.std  = torch.tensor(std,  dtype=torch.float32).view(3, 1, 1)
 
-        # ----------------------------------------------------
-        # Training split: directory-based class structure
-        # ----------------------------------------------------
         if self.split == "train":
             base = self.root / "Final_Training_Images"
             if not base.exists():
@@ -113,9 +109,6 @@ class GTSRBDataset(Dataset):
             self.paths = paths
             self.labels = np.asarray(labels, dtype=np.int64)
 
-        # ----------------------------------------------------
-        # Test split: file list provided via CSV
-        # ----------------------------------------------------
         elif self.split == "test":
             base = self.root / "Final_Test_Images"
             csv_path = base / csv_name
@@ -197,9 +190,6 @@ def get_gtsrb_dataloaders(
     if not (0.0 < debug_fraction <= 1.0):
         raise ValueError("debug_fraction must be in (0, 1].")
     
-    # --------------------------------------------------------
-    # Optional dataset subsampling for debugging or quick runs
-    # --------------------------------------------------------
     if debug_fraction < 1.0:
         # Train subset
         n_train = max(1, int(len(train_dataset) * debug_fraction))
@@ -214,7 +204,7 @@ def get_gtsrb_dataloaders(
         test_dataset = Subset(test_dataset, test_idx)
 
 
-    pin = torch.cuda.is_available()
+    pin = torch.cuda.is_available() or torch.backends.mps.is_available()  # <-- MPS hinzugefügt
 
     train_loader = DataLoader(
         train_dataset,
