@@ -10,6 +10,7 @@ import argparse
 from sklearn.cluster import MiniBatchKMeans
 from matplotlib import pyplot as plt
 
+# Sift + Bovw
 
 class ImageHelpers:
     def __init__(self):
@@ -240,3 +241,42 @@ class BOV:
                                           kmeans_ret=test_ret)
 
         return self.bov_helper.mega_histogram
+    
+
+# 3D Color Histogram Feature Extraction
+
+def hist_3d_features(X, bins=8):
+    """
+    Extract 3D color histogram features (all 3 channels combined).
+    Similar to the lecture example using OpenCV.
+    
+    Args:
+        X: numpy array of shape (N, 3, H, W) with values in [0,1]
+        bins: number of bins per channel (default: 8, giving 8x8x8=512 features)
+    
+    Returns:
+        numpy array of shape (N, bins^3) with normalized histograms
+    """
+    feats = []
+    for img_chw in X:  # (3,H,W), float in [0,1]
+        # Convert to uint8 [0,255]
+        img = (img_chw * 255).astype(np.uint8)
+        # Convert from (C,H,W) to (H,W,C) for OpenCV
+        img_hwc = np.transpose(img, (1, 2, 0))
+        # OpenCV expects BGR, but since we compute histogram over all channels
+        # the order doesn't matter for the histogram
+        # Convert RGB to BGR for consistency with lecture code
+        img_bgr = img_hwc[:, :, ::-1].copy()
+        # Compute 3D histogram over all three channels simultaneously
+        # channels [0,1,2] = B,G,R
+        # bins for each channel
+        # ranges for each channel [0,256]
+        hist_3d = cv2.calcHist([img_bgr], [0, 1, 2], None, 
+                               [bins, bins, bins], 
+                               [0, 256, 0, 256, 0, 256])
+        # Flatten the 3D histogram to 1D feature vector
+        f = hist_3d.flatten().astype(np.float32)
+        # Normalize (L1 normalization)
+        f /= (f.sum() + 1e-8)
+        feats.append(f)
+    return np.vstack(feats)
