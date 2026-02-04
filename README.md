@@ -32,6 +32,8 @@ ML_UE3/
 ├── run_experiment_mac.py         # Mac-optimized CLI entry point (MPS support)
 ├── run_shallow_baselines.py      # Pipeline for shallow learning (Feat. Extraction -> LogisticReg/RandomForest -> Eval)
 ├── resnet_hyperparameter_sweep.py# Automation script to run multiple run_experiment_mac.py (works also on windows) 
+├── script_lenet_models.py        # Script to run run_experiment script multiple times 
+├── sift_bovw.py                  # Feature Extraction 
 │
 ├── requirements.txt              # Required Python libraries
 └── README.md                     # Project documentation
