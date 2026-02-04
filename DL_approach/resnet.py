@@ -1,3 +1,8 @@
+# source:
+# https://github.com/pytorch/vision/blob/main/torchvision/models/resnet.py
+# https://docs.pytorch.org/tutorials/beginner/transfer_learning_tutorial.html
+# https://medium.com/@meda.abdullah/transfer-learning-for-computer-vision-a-pytorch-tutorial-c5c4e022bcdf
+
 import torch
 import torch.nn as nn
 from torchvision import models
