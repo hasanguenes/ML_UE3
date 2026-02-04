@@ -2,6 +2,10 @@
 Source: https://github.com/kushalvyas/Bag-of-Visual-Words-Python
 This is a combination of helpers.py and bag.py without the modeling.
 This py file does the Feature Extraction (SIFT and Bag of Visual Words)
+
+Here is also the code for 3D Color Histogram
+Source: https://pyimagesearch.com/2014/01/22/clever-girl-a-guide-to-utilizing-color-histograms-for-computer-vision-and-image-search-engines/
+and sample from TUWEL
 """
 
 import cv2
