@@ -12,33 +12,35 @@ ML_UE3/
 ├── data/
 │   ├── cifar_loader.py           # Dataset loader for CIFAR-10
 │   ├── gtsrb_loader.py           # Dataset loader for GTSRB
-│   └── README                    # Describes how the Dataset loaders expect the dataset folders to be structured
+│   └── README                    # Describes expected dataset folder structure
+│
 ├── DL_approach/
-│   ├── LeNet.py                  # Implementation of the LeNet-5 convolutional neural network
-│   ├── resnet.py                 # ResNet18 architecture (optionally using ImageNet pretraining)
+│   ├── LeNet.py                  # Implementation of LeNet-5 CNN
+│   ├── resnet.py                 # ResNet18 architecture (supports ImageNet pretraining)
 │   └── train_utils.py            # Shared training, validation, and evaluation utilities
 │
-├── runs/
-│   └── LENET5/                   # Examplary stored experiment runs for LeNet-5 (models, histories, configs, evaluations)
+├── runs/                         # Stores experiment results (Deep Learning)
+├── runs_ml/                      # Stores experiment results (Shallow Learning)
 │
-├── analyse.ipynb                 # Notebook for ResNet18 results analysis
-├── analysis_lenet.ipynb          # Notebook for LeNet5 results analysisexperiments
+├── analysis_lenet.ipynb          # Notebook for LeNet5 results analysis
+├── analysis_resnet.ipynb         # Notebook for ResNet18 results analysis
 ├── cifar_randoms.ipynb           # Random-baseline experiments for CIFAR-10
 ├── gtsrb_randoms.ipynb           # Random-baseline experiments for GTSRB
 │
-├── hyperparameter_sweep.py       # 
-├── run_experiment.py             # Central CLI entry point for training and evaluation of DL models
-├── run_experiment_mac.py         # 
-├── script_lenet_models.py        # Helper script for running run_experiment.py multiple times
+├── feature_extractions.py        # Feature extraction modules (SIFT + BoVW, 3D Color Histogram) for ML models
+├── run_experiment.py             # CLI entry point for training DL models (LeNet/ResNet)
+├── run_experiment_mac.py         # Mac-optimized CLI entry point (MPS support)
+├── run_shallow_baselines.py      # Pipeline for shallow learning (Feat. Extraction -> LogisticReg/RandomForest -> Eval)
+├── resnet_hyperparameter_sweep.py# Automation script to run multiple run_experiment_mac.py (works also on windows) 
 │
-│── requirements.txt              # COntains the needed libraries for running Python files
-│
-├── README.md                     # Project overview, setup instructions, and usage guidelines
+├── requirements.txt              # Required Python libraries
+└── README.md                     # Project documentation
 ```
 
 # Requirements
 
-Python version: 3.13.5
+Python version: 3.13.5 (Windows)
+Python verison: 3.12.9 (Mac)
 
 You can download the necessary libraries by the following:
 
@@ -56,7 +58,7 @@ And unzip this zip file in the data folder.
 
 # Running the DL models
 
-You can use `run_experiment.py` to run one of the DL models. You can set a specific configuration and train the model with this script.
+You can use `run_experiment.py` to run one of the DL models. You can set a specific configuration and train the model with this script. `run_experiment_mac.py` is specifically for mac.
 
 To see all available command-line options and their default values:
 
@@ -179,6 +181,108 @@ python run_experiment.py \
   --runs-dir runs/lenet5_cifar10
 ```
 
-# Information about ML algorithms
+Train ResNet-18 on the GTSRB dataset without data augmentation for a single epoch:
 
-The ML algorithms have been implemented in a Jupyter Notebook in a classical way. Since they are not the main focus here, we decided to only implement them in a Notebook (And due to timing problems).
+```bash
+python run_experiment.py \
+  --model lenet5 \
+  --dataset gtsrb \
+  --epochs 1 \
+  --augment 0 \
+  --runs-dir runs/lenet5_cifar10
+```
+
+# Running the ML Models
+
+You can use `run_shallow_baselines.py` to train shallow learning models (Logistic Regression and Random Forest) using traditional feature extraction methods (Color Histogram and SIFT + Bag of Visual Words).
+
+The script supports both **interactive mode** (with prompts) and **CLI mode** (with command-line arguments).
+
+To see all available command-line options and their default values:
+```bash
+python run_shallow_baselines.py --help
+```
+
+## Command-Line Options
+
+### Dataset & Model Selection
+- `--dataset, -d` : `{cifar10, gtsrb}`  
+  Which dataset to use. If not provided, the script enters interactive mode.
+
+- `--model, -m` : `{lr, rf, both}`  
+  Which model(s) to train:
+  - `lr`: Logistic Regression only
+  - `rf`: Random Forest only
+  - `both`: Train both models
+  
+- `--features, -f` : `{color, sift, both}`  
+  Which feature extraction method(s) to use:
+  - `color`: 3D Color Histogram
+  - `sift`: SIFT + Bag of Visual Words (BoVW)
+  - `both`: Extract both feature types
+
+---
+
+### Sample Size (Optional)
+- `--train-samples` : `INT`  
+  Number of training samples to use. If not specified, uses the full training set. Useful for quick debugging (e.g., `500`).
+
+- `--test-samples` : `INT`  
+  Number of test samples to use. If not specified, uses the full test set. Useful for quick debugging (e.g., `100`).
+
+---
+
+### Feature Extraction Parameters
+- `--bins` : `INT`  
+  Number of bins per channel for the 3D Color Histogram. (default: `8`)
+
+- `--clusters` : `INT`  
+  Number of visual word clusters for SIFT + BoVW. (default: `100`)
+
+---
+
+### Cross-Validation Settings
+- `--cv-folds` : `INT`  
+  Number of cross-validation folds for hyperparameter tuning. (default: `3`)
+
+---
+
+### Execution Modes
+- `--yes, -y`  
+  Skip the confirmation prompt before training starts. Useful for automation.
+
+- `--batch`  
+  Batch mode: Requires `--dataset`, `--model`, and `--features` to be specified. No interactive prompts will appear. Automatically implies `--yes`.
+
+---
+
+## Interactive Mode
+
+If you run the script without arguments, it will guide you through the configuration:
+```bash
+python run_shallow_baselines.py
+```
+
+You'll be prompted to select:
+1. **Dataset**: CIFAR-10 or GTSRB
+2. **Model**: Logistic Regression, Random Forest, or both
+3. **Features**: Color Histogram, SIFT+BoVW, or both
+4. **Sample sizes**: Option to use a subset for quick testing
+5. **Confirmation**: Review configuration before starting
+
+---
+
+## Example Usage
+
+### Example 1: Full Training with All Options
+Train both models on CIFAR-10 using both feature types:
+```bash
+python run_shallow_baselines.py -d cifar10 -m both -f both -y
+```
+
+### Example 2: Quick Debug Run
+Train Logistic Regression on GTSRB with Color Histogram using only 500 train and 100 test samples:
+```bash
+python run_shallow_baselines.py -d gtsrb -m lr -f color --train-samples 500 --test-samples 100 -y
+```
+
