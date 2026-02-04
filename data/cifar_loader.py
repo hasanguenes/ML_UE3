@@ -5,11 +5,6 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 
-# ------------------------------------------------------------
-# Utility function to load CIFAR-10 batch files.
-# CIFAR-10 is stored as pickled Python dictionaries with
-# byte-string keys.
-# ------------------------------------------------------------
 def unpickle(path: str) -> dict:
     with open(path, "rb") as f:
         return pickle.load(f, encoding="bytes")
@@ -31,6 +26,7 @@ def compute_mean_std_from_loader(loader):
     std = torch.sqrt(channel_sq_sum / num_pixels - mean ** 2)
     return mean, std
 
+# Stats must match the pipeline: tensor in [0,1] AFTER resizing to img_size
 CIFAR10_MEAN_STD_BY_SIZE = {
     (32, 32): {
         # Source: https://www.ricardodecal.com/guides/use-these-normalization-values-for-torchvision-datasets
@@ -44,10 +40,7 @@ CIFAR10_MEAN_STD_BY_SIZE = {
     },
 }
 
-# ------------------------------------------------------------
-# Returns the normalization statistics for a given image size.
-# Only explicitly supported resolutions are allowed.
-# ------------------------------------------------------------
+
 def _lookup_cifar10_stats(img_size):
     img_size = tuple(img_size)
     if img_size not in CIFAR10_MEAN_STD_BY_SIZE:
@@ -58,9 +51,7 @@ def _lookup_cifar10_stats(img_size):
     s = CIFAR10_MEAN_STD_BY_SIZE[img_size]
     return s["mean"], s["std"]
 
-# ------------------------------------------------------------
-# Custom CIFAR-10 Dataset implementation.
-# ------------------------------------------------------------
+
 class CIFAR10(Dataset):
     def __init__(
         self,
@@ -83,9 +74,6 @@ class CIFAR10(Dataset):
         data, labels = [], []
 
         if self.split == "train":
-            # ----------------------------------------------------
-            # Training split consists of five data batches
-            # ----------------------------------------------------
             for i in range(1, 6):
                 batch = unpickle(os.path.join(cifar_dir, f"data_batch_{i}"))
                 data.append(batch[b"data"])
@@ -93,9 +81,6 @@ class CIFAR10(Dataset):
             self.x = np.vstack(data).astype(np.uint8)   # (50000, 3072)
             self.y = np.array(labels, dtype=np.int64)   # (50000,)
         elif self.split == "test":
-            # ----------------------------------------------------
-            # Test split consists of a single batch
-            # ----------------------------------------------------
             batch = unpickle(os.path.join(cifar_dir, "test_batch"))
             self.x = batch[b"data"].astype(np.uint8)    # (10000, 3072)
             self.y = np.array(batch[b"labels"], dtype=np.int64)
@@ -111,11 +96,8 @@ class CIFAR10(Dataset):
         return len(self.y)
 
     def __getitem__(self, idx: int):
-        # Raw CIFAR-10 image stored as a flat vector (3072,)
-        flat = self.x[idx]  
-
-        # Reshape to (3, 32, 32) and scale to [0, 1]
-        img = torch.from_numpy(flat).view(3, 32, 32).float() / 255.0  
+        flat = self.x[idx]  # (3072,)
+        img = torch.from_numpy(flat).view(3, 32, 32).float() / 255.0  # [0,1]
 
         # we just use it with 32x32
         # optional resize to img_size (e.g., 64x64)
@@ -127,7 +109,7 @@ class CIFAR10(Dataset):
                 align_corners=False
             ).squeeze(0)
 
-        # optional extra transforms (e.g. augmentation)
+        # optional extra transforms (should expect a tensor)
         if self.transform is not None:
             img = self.transform(img)
 
@@ -137,9 +119,7 @@ class CIFAR10(Dataset):
         label = torch.tensor(int(self.y[idx]), dtype=torch.long)
         return img, label
 
-# ------------------------------------------------------------
-# Factory function for CIFAR-10 DataLoaders.
-# ------------------------------------------------------------
+
 def get_cifar10_dataloaders(
     root: str,
     batch_size: int = 128,
@@ -158,8 +138,7 @@ def get_cifar10_dataloaders(
         transform=test_transform, normalize=normalize, img_size=img_size
     )
 
-    # Pin memory improves transfer speed when using CUDA
-    pin = torch.cuda.is_available()
+    pin = torch.cuda.is_available() or torch.backends.mps.is_available()  # <-- MPS hinzugefügt
 
     train_loader = DataLoader(
         train_ds, batch_size=batch_size, shuffle=True,
