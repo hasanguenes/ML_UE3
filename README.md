@@ -24,7 +24,7 @@ ML_UE3/
 │
 ├── analysis_lenet.ipynb          # Notebook for LeNet5 results analysis
 ├── analysis_resnet.ipynb         # Notebook for ResNet18 results analysis
-├── analysis_resnet.ipynb         # Notebook for ML results analysis
+├── analysis_ml.ipynb             # Notebook for ML results analysis
 ├── cifar_randoms.ipynb           # Random-baseline experiments for CIFAR-10
 ├── gtsrb_randoms.ipynb           # Random-baseline experiments for GTSRB
 │
@@ -35,6 +35,8 @@ ML_UE3/
 ├── resnet_hyperparameter_sweep.py# Automation script to run multiple run_experiment_mac.py (works also on windows) 
 ├── script_lenet_models.py        # Script to run run_experiment script multiple times 
 ├── feature_extractions.py        # Feature Extraction (SIFT+BOVW) and 3D COlor Histogram
+│
+├── EX3_Group05_KarimGuenes.pdf   # Report
 │
 ├── requirements.txt              # Required Python libraries
 └── README.md                     # Project documentation
